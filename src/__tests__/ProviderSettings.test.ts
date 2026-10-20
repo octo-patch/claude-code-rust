@@ -14,6 +14,8 @@ describe('MiniMax provider preset', () => {
     expect(chinaOpenAI?.format).toBe('openai');
     expect(globalAnthropic?.format).toBe('anthropic');
     expect(chinaAnthropic?.format).toBe('anthropic');
+    expect(detectProvider('https://api.minimax.io/anthropic/v1')?.format).toBe('anthropic');
+    expect(detectProvider('https://gateway.example/minimax')).toBeNull();
     expect(globalOpenAI?.endpoints).toEqual([
       { region: 'global_en', format: 'openai', url: 'https://api.minimax.io/v1' },
       { region: 'cn_zh', format: 'openai', url: 'https://api.minimaxi.com/v1' },
@@ -27,20 +29,20 @@ describe('MiniMax provider preset', () => {
 
     expect(preset?.defaultModels).toEqual([
       {
+        id: 'MiniMax-M3.1-Flash',
+        name: 'MiniMax M3.1 Flash',
+        contextWindow: 1_000_000,
+        maxTokens: 524_288,
+        pricingUsdPerMillionTokens: { input: 0.15, output: 0.6, cacheRead: 0.015, cacheWrite: null },
+        inputModalities: ['text', 'image', 'video'],
+        thinking: ['adaptive'],
+      },
+      {
         id: 'MiniMax-M3',
         name: 'MiniMax M3',
         contextWindow: 1_000_000,
-        pricingUsdPerMillionTokens: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: null },
         inputModalities: ['text', 'image', 'video'],
         thinking: ['adaptive', 'disabled'],
-      },
-      {
-        id: 'MiniMax-M2.7',
-        name: 'MiniMax M2.7',
-        contextWindow: 204_800,
-        pricingUsdPerMillionTokens: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 },
-        inputModalities: ['text'],
-        thinking: ['always_on'],
       },
     ]);
   });

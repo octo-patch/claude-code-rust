@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { MINIMAX_MODELS, isDirectMiniMax, mergeDiscoveredModels } from '../utils/minimax';
 import { Plus, Trash2, Check, Eye, EyeOff, RefreshCw, ChevronDown, ChevronRight, X, Globe } from 'lucide-react';
 import { getProviders, createProvider, updateProvider, deleteProvider, testProviderWebSearch, Provider, ProviderModel } from '../api';
 
@@ -35,31 +36,14 @@ export const KNOWN_PROVIDERS: Array<{
     },
     { match: u => /siliconflow/i.test(u), name: 'SiliconFlow', format: 'openai', color: '#7C3AED', letter: 'S' },
     {
-      match: u => /minimax/i.test(u), name: 'MiniMax', format: 'openai', color: '#FF6B35', letter: 'M',
+      match: isDirectMiniMax, name: 'MiniMax', format: 'openai', color: '#FF6B35', letter: 'M',
       endpoints: [
         { region: 'global_en', format: 'openai', url: 'https://api.minimax.io/v1' },
         { region: 'cn_zh', format: 'openai', url: 'https://api.minimaxi.com/v1' },
         { region: 'global_en', format: 'anthropic', url: 'https://api.minimax.io/anthropic' },
         { region: 'cn_zh', format: 'anthropic', url: 'https://api.minimaxi.com/anthropic' },
       ],
-      defaultModels: [
-        {
-          id: 'MiniMax-M3',
-          name: 'MiniMax M3',
-          contextWindow: 1_000_000,
-          pricingUsdPerMillionTokens: { input: 0.6, output: 2.4, cacheRead: 0.12, cacheWrite: null },
-          inputModalities: ['text', 'image', 'video'],
-          thinking: ['adaptive', 'disabled'],
-        },
-        {
-          id: 'MiniMax-M2.7',
-          name: 'MiniMax M2.7',
-          contextWindow: 204_800,
-          pricingUsdPerMillionTokens: { input: 0.3, output: 1.2, cacheRead: 0.06, cacheWrite: 0.375 },
-          inputModalities: ['text'],
-          thinking: ['always_on'],
-        },
-      ]
+      defaultModels: MINIMAX_MODELS
     },
     {
       match: u => /generativelanguage\.googleapis|gemini/i.test(u), name: 'Google Gemini', format: 'openai', color: '#4285F4', letter: 'G',
@@ -82,7 +66,12 @@ export function detectProvider(url: string) {
   for (const kp of KNOWN_PROVIDERS) {
     const endpoint = kp.endpoints?.find(candidate => candidate.url === normalizedUrl);
     if (endpoint) return { ...kp, format: endpoint.format };
-    if (kp.match(url)) return kp;
+    if (kp.match(url)) {
+      if (isDirectMiniMax(url) && /^\/anthropic(?:\/|$)/.test(new URL(url).pathname)) {
+        return { ...kp, format: 'anthropic' as const };
+      }
+      return kp;
+    }
   }
   return null;
 }
@@ -320,9 +309,9 @@ const ProviderSettings: React.FC = () => {
           const res = await fetch(endpoint + '/models', { headers: { 'Authorization': 'Bearer ' + key } });
           if (res.ok) {
             const data = await res.json();
-            const models = (data.data || [])
+            const models = mergeDiscoveredModels(url, (data.data || [])
               .filter((m: any) => m.id && typeof m.id === 'string')
-              .map((m: any) => ({ id: m.id, name: m.id, enabled: true }));
+              .map((m: any) => ({ id: m.id, name: m.id, enabled: true })), p.models);
             if (models.length > 0) {
               await updateProvider(p.id, { models });
               setProviderList(prev => prev.map(x => x.id === p.id ? { ...x, models } : x));
@@ -385,9 +374,9 @@ const ProviderSettings: React.FC = () => {
       const res = await fetch(endpoint, { headers });
       if (res.ok) {
         const data = await res.json();
-        const models: ProviderModel[] = (data.data || [])
+        const models = mergeDiscoveredModels(p.baseUrl, (data.data || [])
           .filter((m: any) => m.id && typeof m.id === 'string')
-          .map((m: any) => ({ id: m.id, name: m.id, enabled: true }));
+          .map((m: any) => ({ id: m.id, name: m.id, enabled: true })), p.models);
         if (models.length > 0) {
           await handleUpdate(p.id, { models });
           await loadProviders();

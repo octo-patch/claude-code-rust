@@ -13,6 +13,7 @@ export interface ProviderModel {
   name: string;
   enabled?: boolean;
   contextWindow?: number;
+  maxTokens?: number;
   pricingUsdPerMillionTokens?: {
     input: number;
     output: number;
